@@ -1,0 +1,71 @@
+setwd("C:/Users/Pedro/Desktop/Mis documentos/Curso Coursera Machine Learning/Project")
+# check if a data folder exists; if not then create one
+if (!file.exists("data")) {dir.create("data")}
+# Getting data
+fileUrl1 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+fileUrl2 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+# download data
+download.file(fileUrl1, destfile= "./data/pml-training.csv")
+download.file(fileUrl2, destfile= "./data/pml-testing.csv")
+dateDownloaded <- date()
+list.files("Data")
+# read the csv file for training and test
+data_training <- read.csv("./data/pml-training.csv",
+                          header=T,na.strings= c("NA",""," "))
+data_test <- read.csv("./data/pml-testing.csv",
+                      header=T,na.strings= c("NA",""," "))
+#Take a look to data
+str(data_training)
+names(data_training)
+head(data_training)
+summary(data_training)
+# clean the data by removing columns with any NA
+data_training_NA <- apply(data_training, 2, function(x) {sum(is.na(x))})
+data_training_clean <- data_training[,which(data_training_NA == 0)]
+str(data_training_clean)
+summary(data_training_clean)
+names(data_training_clean)
+# remove columns with no meaningful information (no movement information)
+#These are the seven first columns
+data_training_clean <- data_training_clean[8:length(data_training_clean)]
+names(data_training_clean)
+#Take a look to classe variable, the goal of this project
+table(data_training_clean$classe)
+#Well, after this previous task begin with the prediction problem
+library(caret)
+#split the data_training_clean into training and testing for the cross validation
+inTrain <- createDataPartition(y = data_training_clean$classe, p = 0.7, list = F)
+training <- data_training_clean[inTrain, ]
+testing <- data_training_clean[-inTrain, ]
+dim(training);dim(testing)
+# fit a model to predict the classe using everything else as a predictor
+#a CART model
+set.seed(123)
+modelrpart <- train(classe~.,method="rpart",data=training)
+print(modelrpart$finalModel)
+library(rattle)
+fancyRpartPlot(modelrpart$finalModel)
+#random forest model
+library(randomForest)
+set.seed(123)
+modelrf <- randomForest(classe ~ ., data = training)
+print(modelrf)
+order(varImp(modelrf),decreasing=T)
+# crossvalidate the model with testing data
+predictCRrpart <- predict(modelrpart, testing)
+confusionMatrix(testing$classe, predictCRrpart )
+predictCRrf <- predict(modelrf, testing)
+confusionMatrix(testing$classe, predictCRrf)
+#plotting results
+qplot(predict(modelrpart,testing),classe,data=testing)
+qplot(predict(modelrf,testing),classe,data=testing)
+#  Now apply models to testing data (data_test)
+# First we make the same treatment of data
+data_test_NA <- apply(data_test, 2, function(x) {sum(is.na(x))})
+data_test_clean <- data_test[,which(data_test_NA == 0)]
+data_test_clean <- data_test_clean[8:length(data_test_clean)]
+# predict the classes of the test set
+predictrpart_data_test <- predict(modelrpart, data_test_clean)
+predictrf_data_test <- predict(modelrf, data_test_clean)
+predictrpart_data_test
+predictrf_data_test
